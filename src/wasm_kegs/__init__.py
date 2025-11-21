@@ -1,21 +1,32 @@
+from __future__ import annotations
 import os
 import tomllib
-from typing import Any, Callable
+import weakref
+from typing import Any
+import uuid
 import extism
 
 from . import packages
 
-class Plugin():
-    """Must subclass to get a specific plugin type."""
+_plugins_by_instance_id: weakref.WeakValueDictionary[str, Plugin] = weakref.WeakValueDictionary()
 
-    host_functions: list[Callable] = []
-    
+
+@extism.host_fn("keg_get_static_resource")
+def keg_get_static_resource(instance_id: str, path: str) -> bytes:
+    plugin = _plugins_by_instance_id[instance_id]
+    return open(os.path.join(plugin.plugin_folder, "static", path), "rb").read()
+
+
+class Plugin():
+    """Must subclass to get a specific plugin type."""    
     wasi = False
 
     plugin_type = ""
 
     def __init__(self,plugin: str, config=dict[str, Any]):
         p = packages.PackageStore().find_plugin(plugin)
+
+        self.plugin_folder: str = p
 
         _package, plugin = packages.parse_plugin_name(plugin)
 
@@ -28,6 +39,13 @@ class Plugin():
         
         p = os.path.join(p, "plugin.wasm")
 
-        functions = list(self.host_functions)
 
-        self.extism_plugin = extism.Plugin(p, functions=functions, wasi=self.wasi)
+        self.instance_id: str = str(uuid.uuid4())
+
+        self.extism_plugin = extism.Plugin(p, wasi=self.wasi)
+
+        if self.extism_plugin.function_exists("plugin_init"):
+            self.extism_plugin.call("plugin_init", self.instance_id)
+
+        _plugins_by_instance_id[self.instance_id] = self
+

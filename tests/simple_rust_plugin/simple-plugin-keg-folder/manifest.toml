@@ -1,2 +1,9 @@
+[package]
+name = "rust_plugin_example"
+version = "1.0.0"
+description = "Example plugin showing minimal structure"
+author = "Somebody"
+
+
 [plugins.simple_rust_plugin]
 type="kegs.testing.simple_rust_plugin"
