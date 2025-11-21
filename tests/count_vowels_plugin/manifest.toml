@@ -1,0 +1,2 @@
+[plugins.count_vowels]
+type="kegs.testing.vowelcounter"

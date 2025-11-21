@@ -1,0 +1,2 @@
+[plugins.simple_rust_plugin]
+type="kegs.testing.simple_rust_plugin"
