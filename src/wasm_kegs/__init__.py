@@ -8,7 +8,7 @@ import extism
 
 from . import packages
 
-_plugins_by_instance_id: weakref.WeakValueDictionary[str, Plugin] = weakref.WeakValueDictionary()
+_plugins_by_instance_id: weakref.WeakValueDictionary[str, PluginLoader] = weakref.WeakValueDictionary()
 
 
 @extism.host_fn("keg_get_static_resource")
@@ -17,7 +17,7 @@ def keg_get_static_resource(instance_id: str, path: str) -> bytes:
     return open(os.path.join(plugin.plugin_folder, "static", path), "rb").read()
 
 
-class Plugin():
+class PluginLoader():
     """Must subclass to get a specific plugin type."""    
     wasi = False
 

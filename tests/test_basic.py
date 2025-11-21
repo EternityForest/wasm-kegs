@@ -1,11 +1,11 @@
 import json
 import os
-from wasm_kegs import Plugin, packages
+from wasm_kegs import PluginLoader, packages
 
 
 p = packages.PackageStore()
 
-class VowelCountPlugin(Plugin):
+class VowelCountPlugin(PluginLoader):
     """This plugin type supports vowel counting plugins."""
     plugin_type = "kegs.testing.vowelcounter"
     
@@ -14,7 +14,7 @@ class VowelCountPlugin(Plugin):
         return json.loads(t)["count"]
     
 
-class SimpleRustPlugin(Plugin):
+class SimpleRustPlugin(PluginLoader):
     plugin_type = "kegs.testing.simple_rust_plugin"
     
     def greet(self, name: str)->str:
@@ -24,7 +24,7 @@ class SimpleRustPlugin(Plugin):
         return self.extism_plugin.call("readback", path).decode()
     
 
-path = os.path.join(os.path.dirname(__file__), "count_vowels_plugin")
+path = os.path.join(os.path.dirname(__file__), "count_vowels_package")
 path2 = os.path.join(os.path.dirname(__file__), "simple_rust_plugin",
                      "simple-plugin-keg-folder")
 
