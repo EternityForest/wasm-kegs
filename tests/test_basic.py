@@ -1,6 +1,9 @@
 import json
 import os
+
+import extism
 from wasm_kegs import PluginLoader, packages
+import wasm_kegs
 
 
 p = packages.PackageStore()
@@ -14,14 +17,25 @@ class VowelCountPlugin(PluginLoader):
         return json.loads(t)["count"]
     
 
+
+
+@extism.host_fn("keg_test_get_name")
+def get_name(plugin: extism.CurrentPlugin)->str:
+    p = SimpleRustPlugin.get_running_instance(plugin)
+    return p.name
+
 class SimpleRustPlugin(PluginLoader):
     plugin_type = "kegs.testing.simple_rust_plugin"
+
+    def __init__(self, plugin: str, config):
+        super().__init__(plugin, config)
+        self.name = "Ken"
     
     def greet(self, name: str)->str:
-        return self.extism_plugin.call("greet", name).decode()
+        return self.call_plugin("greet", name).decode()
     
     def read_static_resource(self, path: str)->str:
-        return self.extism_plugin.call("readback", path).decode()
+        return self.call_plugin("readback", path).decode()
     
 
 path = os.path.join(os.path.dirname(__file__), "count_vowels_package")
@@ -36,6 +50,6 @@ def test_count_vowels():
 def test_rust_plugin():
     with p:
         plugin = SimpleRustPlugin(path2+":simple_rust_plugin", {})
-        assert plugin.greet("world") == f"Hello, world, from {plugin.instance_id}!"
+        assert plugin.greet("world") == "Hello, world, from Ken!"
 
         assert plugin.read_static_resource("hello.txt") == "test"
