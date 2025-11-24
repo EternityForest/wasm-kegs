@@ -2,7 +2,8 @@ from __future__ import annotations
 import os
 import tomllib
 import weakref
-from typing import Any, Callable, TypeVar
+import struct
+from typing import Any, TypeVar
 import uuid
 import extism
 
@@ -25,6 +26,43 @@ def keg_get_static_resource(current_plugin: extism.CurrentPlugin, path: str) -> 
 
 
 
+class Payload:
+    def __init__(self, data: bytes):
+        self.data = data
+
+    def read_i64(self) -> int:
+        x = int.from_bytes(self.data[:8], "little")
+        self.data = self.data[8:]
+        return x
+    
+    def write_i64(self, x: int):
+        self.data += x.to_bytes(8, "little")
+
+    def read_f32(self) -> float:
+        x = struct.unpack("<f", self.data[:4])[0]    
+        self.data = self.data[4:]
+        return x
+    
+    def write_f32(self, x: float):
+        self.data += struct.pack("<f", x)
+
+    def write_bytes(self, x: bytes):
+        self.write_i64(len(x))
+        self.data += x
+    
+    def read_bytes(self) -> bytes:
+        sz = self.read_i64()
+        x = self.data[:sz]
+        self.data = self.data[sz:]
+        return x
+
+    def read_string(self) -> str:
+        return self.read_bytes().decode()
+    
+    def write_string(self, x: str):
+        self.write_bytes(x.encode())
+    
+    
 
 _LoaderTypeVar = TypeVar("_LoaderTypeVar")
 
@@ -53,7 +91,7 @@ class PluginLoader():
         return self.extism_plugin.call(name, data, host_context=self)
     
     
-    def __init__(self,plugin: str, config=dict[str, Any]):
+    def __init__(self,plugin: str, config:dict[str, Any]):
         p = packages.PackageStore().find_plugin(plugin)
 
         self.plugin_folder: str = p

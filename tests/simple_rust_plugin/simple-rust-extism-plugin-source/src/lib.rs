@@ -2,12 +2,10 @@ use std::string;
 
 use extism_pdk::*;
 
+use wasm_kegs_sdk::KegsPayload;
 
-#[host_fn("extism:host/user")]
-extern "ExtismHost" {
-    fn keg_get_static_resource(path: String) -> Vec<u8>;
-}
 
+use wasm_kegs_sdk::keg_get_static_resource;
 
 #[host_fn("extism:host/user")]
 extern "ExtismHost" {

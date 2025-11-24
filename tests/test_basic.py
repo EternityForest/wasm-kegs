@@ -1,9 +1,9 @@
 import json
 import os
+from typing import Any
 
 import extism
 from wasm_kegs import PluginLoader, packages
-import wasm_kegs
 
 
 p = packages.PackageStore()
@@ -44,7 +44,8 @@ path2 = os.path.join(os.path.dirname(__file__), "simple_rust_plugin",
 
 def test_count_vowels():
     with p:
-        plugin = VowelCountPlugin(path+":count_vowels", {})
+        cfg: dict[str, Any] = {}
+        plugin = VowelCountPlugin(path+":count_vowels", cfg)
         assert plugin.count_vowels("hello") == 2
 
 def test_rust_plugin():

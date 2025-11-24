@@ -1,0 +1,5 @@
+[workspace]
+members = [
+    "tests/simple_rust_plugin/simple-rust-extism-plugin-source",
+    "rust_sdk",
+]
