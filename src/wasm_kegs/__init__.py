@@ -22,7 +22,9 @@ def get_running_instance(plugin: extism.CurrentPlugin) -> PluginLoader:
 @extism.host_fn("keg_get_static_resource")
 def keg_get_static_resource(current_plugin: extism.CurrentPlugin, path: str) -> bytes:
     plugin =  get_running_instance(current_plugin)
-    return open(os.path.join(plugin.plugin_folder, "static", path), "rb").read()
+
+    package_dir = os.path.dirname(plugin.plugin_folder)
+    return open(os.path.join(package_dir, "static", path), "rb").read()
 
 
 

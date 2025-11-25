@@ -3,3 +3,8 @@ members = [
     "tests/simple_rust_plugin/simple-rust-extism-plugin-source",
     "rust_sdk",
 ]
+
+
+[tools.kegs]
+package_name = "simple-rust-kegs-demo"
+plugins = "simple_rust_plugin"
