@@ -1,5 +1,3 @@
-use std::string;
-
 use extism_pdk::*;
 
 use wasm_kegs_sdk::KegsPayload;

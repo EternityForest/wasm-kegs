@@ -109,6 +109,9 @@ class PluginLoader():
         
         p = os.path.join(p, "plugin.wasm")
 
+        if not os.path.exists(p):
+            raise RuntimeError(f"Plugin {p} not found")
+
 
         self.instance_id: str = str(uuid.uuid4())
 

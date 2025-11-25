@@ -48,8 +48,7 @@ class SimpleRustPlugin(PluginLoader):
     
 
 path = os.path.join(os.path.dirname(__file__), "count_vowels_package")
-path2 = os.path.join(os.path.dirname(__file__), "simple_rust_plugin",
-                     "simple-plugin-keg-folder")
+path2 = os.path.join(os.path.dirname(os.path.dirname(__file__)), "kegs-build", "simple-rust-kegs-demo")
 
 def test_count_vowels():
     with p:
@@ -59,7 +58,7 @@ def test_count_vowels():
 
 def test_rust_plugin():
     with p:
-        plugin = SimpleRustPlugin(path2+":simple_rust_plugin", {})
+        plugin = SimpleRustPlugin(path2+":simple-rust-plugin", {})
         assert plugin.greet("world") == "Hello, world, from Ken!"
 
         assert plugin.read_static_resource("hello.txt") == "test"
@@ -67,7 +66,7 @@ def test_rust_plugin():
 
 def test_rust_plugin_payload_encoding():
     with p:
-        plugin = SimpleRustPlugin(path2+":simple_rust_plugin", {})
+        plugin = SimpleRustPlugin(path2+":simple-rust-plugin", {})
 
         x = Payload(b"")
         a =56567

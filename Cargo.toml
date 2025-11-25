@@ -1,10 +1,12 @@
 [workspace]
 members = [
-    "tests/simple_rust_plugin/simple-rust-extism-plugin-source",
+    "simple-rust-plugin",
     "rust_sdk",
 ]
 
 
 [tools.kegs]
-package_name = "simple-rust-kegs-demo"
-plugins = "simple_rust_plugin"
+package-name = "simple-rust-kegs-demo"
+manifest-src = "manifest.toml"
+plugins = ["simple-rust-plugin"]
+static-src = "simple-rust-plugin/static"

@@ -49,28 +49,29 @@ def copy_static(path: str, keg_build_output: str):
     if "kegs" not in md:
         return
     
-    if "static_src" not in md["kegs"]:
+    if "static-src" not in md["kegs"]:
         return
     
-    src = md["kegs"]["static_src"]
+    src = md["kegs"]["static-src"]
     src = os.path.join(path, src)
 
     if os.path.exists(src):
         os.makedirs(os.path.join((keg_build_output), "static"), exist_ok=True)
         rsync_dirs(src, os.path.join(keg_build_output, "static"))
 
-def build_rust_plugin(path: str, keg_dest: str):
+def build_rust_plugin(workspace: str, path: str, plugin_dest: str):
 
     t = tomllib.load(open(os.path.join(path, "Cargo.toml"), "rb"))
-    rust_name = t["package"]["name"]
+    rust_name = t["package"]["name"].replace("-", "_")
 
-    kegs_plugin_name = t["tools"]["kegs"]["plugin_name"]
+    kegs_plugin_name = t["tools"]["kegs"]["plugin-name"]
 
 
-    rust_build_output = os.path.join(path, "target", "wasm32-unknown-unknown", "release", rust_name + ".wasm")
-    subprocess.check_call(["cargo", "build", "--release", "--target", "wasm32-unknown-unknown"], cwd=path)
+    rust_build_output = os.path.join(workspace, "target", "wasm32-unknown-unknown", "debug", rust_name + ".wasm")
+    subprocess.check_call(["cargo", "build", "--target", "wasm32-unknown-unknown"], cwd=path)
 
-    shutil.copyfile(rust_build_output, os.path.join(keg_dest, kegs_plugin_name,"plugin.wasm"))
+    os.makedirs(os.path.join(plugin_dest, kegs_plugin_name), exist_ok=True)
+    shutil.copyfile(rust_build_output, os.path.join(plugin_dest, kegs_plugin_name,"plugin.wasm"))
 
 
 
@@ -79,16 +80,21 @@ def build_rust_package(workspace_path: str):
 
     md = t["tools"]
 
-    keg_dest = os.path.join(workspace_path, md["kegs"]["package_name"])
+    keg_dest = os.path.join(workspace_path, "kegs-build", md["kegs"]["package-name"])
+    print(f"Building keg package to {keg_dest}")
+    manifest_src = md["kegs"]["manifest-src"]
+    manifest_src = os.path.join(workspace_path, manifest_src)
+
+    os.makedirs(keg_dest, exist_ok=True)
+    shutil.copyfile(manifest_src, os.path.join(keg_dest, "manifest.toml"))
 
     for i in md["kegs"]["plugins"]:
         path = os.path.join(workspace_path, i)
-        keg_dest = os.path.join(workspace_path, "kegs", i)
-        os.makedirs(keg_dest, exist_ok=True)
-        build_rust_plugin(path, keg_dest)
+        build_rust_plugin(workspace_path, path, keg_dest)
 
     copy_static(workspace_path, keg_dest)
+    shutil.copy
 
 
 if __name__ == "__main__":
-    build_rust_package(".")
+    build_rust_package(os.getcwd())

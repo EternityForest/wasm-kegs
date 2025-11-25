@@ -5,5 +5,5 @@ description = "Example plugin showing minimal structure"
 author = "Somebody"
 
 
-[plugins.simple_rust_plugin]
+[plugins.simple-rust-plugin]
 type="kegs.testing.simple_rust_plugin"
