@@ -1,5 +1,6 @@
 import json
 import os
+import time
 from typing import Any
 
 import extism
@@ -68,12 +69,14 @@ def test_rust_plugin_payload_encoding():
     with p:
         plugin = SimpleRustPlugin(path2+":simple-rust-plugin", {})
 
-        x = Payload(b"")
-        a =56567
-        b = 7654
 
-        x.write_i64(a)
-        x.write_i64(b)
+
+        x = Payload(b"")
+        x.write_i64(78787)
+        assert x.read_i64() == 78787
+
+        assert plugin.add(1,2) == 3
+
 
 
         assert plugin.greet("world") == "Hello, world, from Ken!"

@@ -36,6 +36,6 @@ pub unsafe fn add_test(input: Vec<u8>) -> FnResult<Vec<u8>> {
 
     let mut keg_payload_out = KegsPayload::new();
     keg_payload_out.write_i64(output);
-    Ok(keg_payload.into_bytes())
+    Ok(keg_payload_out.into_bytes())
 }
 
