@@ -1,100 +1,226 @@
-# This file is only for building plugins
-
-
+#!/usr/bin/env python3
+import argparse
 import shutil
 import subprocess
 import tomllib
+from pathlib import Path
+import zipfile
 import os
+import sys
 
 
-def rsync_dirs(source_dir, destination_dir):
-    """
-    Syncs the contents of a source directory to a destination directory using rsync.
+class KegBuildError(Exception):
+    pass
 
-    :param source_dir: The path to the source directory (must have a trailing slash for contents only).
-    :param destination_dir: The path to the destination directory.
-    """
-    # Ensure source path has a trailing slash to copy contents *into* the destination
-    if not source_dir.endswith(os.sep):
-        source_dir += os.sep
-    
-    # The rsync command:
-    # -a: archive mode (preserves permissions, ownership, timestamps, recursive)
-    # -v: verbose
-    # --delete: delete files in destination that are not in source (for true mirroring)
-    command = [
-        'rsync',
-        '-av',
-        '--delete',
-        source_dir,
-        destination_dir
-    ]
 
-    print(f"Running command: {' '.join(command)}")
-    
+def load_toml(path: Path):
     try:
-        # Run the command
-        subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        print("Rsync completed successfully.")
-    except subprocess.CalledProcessError as e:
-        print(f"Rsync failed: {e.stderr}")
-    except FileNotFoundError:
-        print("Error: rsync command not found. Make sure rsync is installed and in your system's PATH.")
+        with open(path, "rb") as f:
+            return tomllib.load(f)
+    except Exception as e:
+        raise KegBuildError(f"Failed to parse TOML file {path}: {e}")
 
-def copy_static(path: str, keg_build_output: str):
 
-    t = tomllib.load(open(os.path.join(path, "Cargo.toml"), "rb"))
+def validate_keg_structure(root: Path):
+    """Validate keg.toml and basic plugin structure."""
+    keg_path = root / "keg.toml"
+    if not keg_path.exists():
+        raise KegBuildError("Missing keg.toml")
 
-    md = t["tools"]
-    if "kegs" not in md:
-        return
+    keg = load_toml(keg_path)
+
+    if "name" not in keg['keg'] or "version" not in keg['keg']:
+        raise KegBuildError("keg.toml must specify name and version")
+
+    plugins = keg.get("plugins")
+    if not isinstance(plugins, list):
+        raise KegBuildError("[[plugins]] table missing or not a list")
+
+    for entry in plugins:
+        plugin_name = entry.get("name")
+
+        if "path" not in entry:
+            raise KegBuildError(f"Plugin {plugin_name} must specify a path")
+
+        path = root / entry["path"]
+        if not (path / "metadata.toml").exists():
+            raise KegBuildError(f"{plugin_name}: {path}/metadata.toml missing")
+
+        metadata = load_toml(path / "metadata.toml")
+
+        if metadata['plugin'].get("name") != plugin_name:
+            raise KegBuildError(
+                f"{plugin_name}: metadata.toml name does not match keg.toml name"
+            )
+
+        # Optional schema.toml
+        schema_name = metadata.get("schema")
+        if schema_name:
+            if not (path / schema_name).exists():
+                raise KegBuildError(
+                    f"{plugin_name}: schema.toml declared but not found"
+                )
+
+
+def build_rust_crates(root: Path, plugin_dir: Path):
+    """Build all crates under src/rust and place wasm files in plugin/."""
+    out_dir =  root / plugin_dir
+
+    crate = out_dir / "src" / "rust"
+
+    # Arbitrary name
+    if crate.exists():
+        x = os.listdir(crate)
+        if len(x) > 1:
+            raise KegBuildError(f"Multiple rust crates found in {crate}")
+
+        crate = crate / x[0]
     
-    if "static-src" not in md["kegs"]:
+
+    print(f"[build] Building Rust crate in {crate}")
+    print(f"[build] Outputting to {out_dir}")
+
+    if not crate.exists():
+        print(f"[build] {crate} does not exist")
         return
+
+    out_dir.mkdir(exist_ok=True, parents=True)
+
+    if not crate.is_dir():
+        print(f"[build] {crate} is not a directory")
+        return
+
+    cargo_toml = crate / "Cargo.toml"
+    if not cargo_toml.exists():
+        raise KegBuildError(f"[build] Cargo.toml not found in {crate}")
+        
+
+    with open(cargo_toml, "rb") as f:
+        cargo = tomllib.load(f)
+
     
-    src = md["kegs"]["static-src"]
-    src = os.path.join(path, src)
+    print(f"[build] Building Rust crate {crate}")
 
-    if os.path.exists(src):
-        os.makedirs(os.path.join((keg_build_output), "static"), exist_ok=True)
-        rsync_dirs(src, os.path.join(keg_build_output, "static"))
+    # Perform cargo build
+    result = subprocess.run(
+        [
+            "cargo",
+            "build",
+            "--release",
+            "--target",
+            "wasm32-unknown-unknown",
+        ],
+        cwd=crate,
+        stdout=sys.stdout,
+        stderr=sys.stderr,
+    )
 
-def build_rust_plugin(workspace: str, path: str, plugin_dest: str):
+    if result.returncode != 0:
+        raise KegBuildError(f"Cargo build failed for {crate}")
 
-    t = tomllib.load(open(os.path.join(path, "Cargo.toml"), "rb"))
-    rust_name = t["package"]["name"].replace("-", "_")
+    # Find the WASM artifact
+    artifact = (
+        crate
+        / "target"
+        / "wasm32-unknown-unknown"
+        / "release"
+        / (cargo["package"]["name"].replace("-", "_") + ".wasm")
+    )
 
-    kegs_plugin_name = t["tools"]["kegs"]["plugin-name"]
+    if not artifact.exists():
+        raise KegBuildError(
+            f"Expected wasm file not found: {artifact}"
+        )
+
+    # Copy to output
+    dest = out_dir / "plugin.wasm"
+    shutil.copyfile(artifact, dest)
+    print(f"[build] Wrote {dest}")
 
 
-    rust_build_output = os.path.join(workspace, "target", "wasm32-unknown-unknown", "debug", rust_name + ".wasm")
-    subprocess.check_call(["cargo", "build", "--target", "wasm32-unknown-unknown"], cwd=path)
+def collect_paths_for_archive(root: Path, include_source: bool):
+    """Yield (archive_name, real_path) tuples."""
+    root_base = os.path.basename(root)
+    print(f"[pack] Scanning {root_base} for files")
+    for path in root.rglob("*"):
 
-    os.makedirs(os.path.join(plugin_dest, kegs_plugin_name), exist_ok=True)
-    shutil.copyfile(rust_build_output, os.path.join(plugin_dest, kegs_plugin_name,"plugin.wasm"))
+        p = Path(os.path.relpath(path, root))
+        # Exclude dist folder
+        if p.parts[0] == 'dist':
+            continue
+
+        if p.parts[0].startswith('.'):
+            continue
+        
+        # Exclude .git or other noise
+        if ".git" in path.parts:
+            continue
+
+        if path.is_dir():
+            continue
+
+        if p.parts[0] == 'plugins':
+            if p.parts[2] == 'src':
+                if not include_source:
+                    continue
+                if p.parts[5] == 'target':
+                    continue
+
+            
+
+        print(f"[pack] Including {p}")
+        
 
 
+        arcname = path.relative_to(root)
+        yield arcname.as_posix(), path
 
-def build_rust_package(workspace_path: str):
-    t = tomllib.load(open(os.path.join(workspace_path, "Cargo.toml"), "rb"))
 
-    md = t["tools"]
+def build_keg(root: Path):
+    keg = load_toml(root / "keg.toml")
+    name = keg['keg']["name"]
+    version = keg['keg']["version"]
+    include_source = keg.get("include_source", False)
 
-    keg_dest = os.path.join(workspace_path, "kegs-build", md["kegs"]["package-name"])
-    print(f"Building keg package to {keg_dest}")
-    manifest_src = md["kegs"]["manifest-src"]
-    manifest_src = os.path.join(workspace_path, manifest_src)
+    validate_keg_structure(root)
 
-    os.makedirs(keg_dest, exist_ok=True)
-    shutil.copyfile(manifest_src, os.path.join(keg_dest, "manifest.toml"))
+    # Build plugins
+    for entry in keg["plugins"]:
+        plugin_dir = Path(entry["path"])
+        build_rust_crates(root, plugin_dir)
 
-    for i in md["kegs"]["plugins"]:
-        path = os.path.join(workspace_path, i)
-        build_rust_plugin(workspace_path, path, keg_dest)
+    # Prepare dist output
+    dist = root / "dist"
+    dist.mkdir(exist_ok=True)
+    out_file = dist / f"{name}-{version}.keg"
 
-    copy_static(workspace_path, keg_dest)
-    shutil.copy
+    print(f"[pack] Creating {out_file}")
+
+    # Build zip archive
+    with zipfile.ZipFile(out_file, "w", zipfile.ZIP_DEFLATED) as z:
+        for arcname, realpath in collect_paths_for_archive(root, include_source):
+            z.write(realpath, arcname)
+
+    print(f"[done] Built {out_file}")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Keg Builder")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    build_cmd = sub.add_parser("build", help="Build and package the .keg file")
+    build_cmd.add_argument("path", nargs="?", default=".", help="Path to keg root")
+
+    args = parser.parse_args()
+
+    try:
+        if args.command == "build":
+            root = Path(args.path).resolve()
+            build_keg(root)
+    except KegBuildError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
-    build_rust_package(os.getcwd())
+    main()

@@ -1,9 +1,11 @@
-[package]
+[keg]
 name = "rust_plugin_example"
 version = "1.0.0"
 description = "Example plugin showing minimal structure"
 author = "Somebody"
 
 
-[plugins.simple-rust-plugin]
+[[plugins]]
+name = "simple-rust-plugin"
+path = "plugins/simple-rust-plugin"
 type="kegs.testing.simple_rust_plugin"

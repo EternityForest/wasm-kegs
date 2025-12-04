@@ -4,5 +4,7 @@ version = "1.0.0"
 description = "Example plugin showing minimal structure"
 author = "Somebody"
 
-[plugins.count_vowels]
+[[plugins]]
+name="count_vowels"
 type="kegs.testing.vowelcounter"
+path="plugins/count_vowels"

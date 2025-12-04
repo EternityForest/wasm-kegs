@@ -1,6 +1,7 @@
 import os
 import zipfile
 import threading
+import tomllib
 
 _local = threading.local()
 
@@ -50,4 +51,19 @@ class PackageStore():
     def find_plugin(self,plugin)->str:
         package, plugin = parse_plugin_name(plugin)
         packagedir = self.ensure_package(package)
-        return os.path.join(packagedir, plugin)
+
+        with open(os.path.join(packagedir, "keg.toml"), "rb") as f:
+            manifest = tomllib.load(f)
+
+        pl = manifest["plugins"]
+        pm = None
+        for i in pl:
+            if i["name"] == plugin:
+                pm = i
+                break
+
+        if pm is None:
+            raise RuntimeError(f"Plugin {plugin} not found in keg.toml")
+        
+        plugin_path = os.path.join(packagedir,pm["path"])
+        return plugin_path

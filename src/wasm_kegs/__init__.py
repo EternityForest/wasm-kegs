@@ -23,7 +23,7 @@ def get_running_instance(plugin: extism.CurrentPlugin) -> PluginLoader:
 def keg_get_static_resource(current_plugin: extism.CurrentPlugin, path: str) -> bytes:
     plugin =  get_running_instance(current_plugin)
 
-    package_dir = os.path.dirname(plugin.plugin_folder)
+    package_dir = os.path.dirname(os.path.dirname(plugin.plugin_folder))
     return open(os.path.join(package_dir, "static", path), "rb").read()
 
 
@@ -95,19 +95,31 @@ class PluginLoader():
     
     def __init__(self,plugin: str, config:dict[str, Any]):
         p = packages.PackageStore().find_plugin(plugin)
+        packagedir = os.path.dirname(p)
+
+        print(f"Loading plugin {plugin} from {p}")
 
         self.plugin_folder: str = p
 
         _package, plugin = packages.parse_plugin_name(plugin)
 
-        with open(os.path.join(os.path.dirname(p), "manifest.toml"),"rb") as f:
+        with open(os.path.join(os.path.dirname(packagedir), "keg.toml"),"rb") as f:
             manifest = tomllib.load(f)
 
-        pm = manifest["plugins"][plugin]
+        pl = manifest["plugins"]
+        pm = None
+        for i in pl:
+            if i["name"] == plugin:
+                pm = i
+                break
+
+        if pm is None:
+            raise RuntimeError(f"Plugin {plugin} not found in keg.toml")
+        
         if not pm["type"] == self.plugin_type:
             raise RuntimeError("Plugin type mismatch")
         
-        p = os.path.join(p, "plugin.wasm")
+        p = os.path.join(p,"plugin.wasm")
 
         if not os.path.exists(p):
             raise RuntimeError(f"Plugin {p} not found")

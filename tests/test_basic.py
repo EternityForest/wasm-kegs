@@ -49,7 +49,8 @@ class SimpleRustPlugin(PluginLoader):
     
 
 path = os.path.join(os.path.dirname(__file__), "count_vowels_package")
-path2 = os.path.join(os.path.dirname(os.path.dirname(__file__)), "kegs-build", "simple-rust-kegs-demo")
+path2 = os.path.join(os.path.dirname(os.path.dirname(__file__)), "simple-rust-package",
+                     "dist", "rust_plugin_example-1.0.0.keg")
 
 def test_count_vowels():
     with p:
