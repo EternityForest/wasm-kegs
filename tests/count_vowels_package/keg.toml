@@ -7,4 +7,3 @@ author = "Somebody"
 [[plugins]]
 name="count_vowels"
 type="kegs.testing.vowelcounter"
-path="plugins/count_vowels"

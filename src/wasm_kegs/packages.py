@@ -65,5 +65,6 @@ class PackageStore():
         if pm is None:
             raise RuntimeError(f"Plugin {plugin} not found in keg.toml")
         
-        plugin_path = os.path.join(packagedir,pm["path"])
+        plugin_path = os.path.join(packagedir,pm.get("path",
+                                                     "plugins/"+pm["name"]))
         return plugin_path
