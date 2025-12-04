@@ -7,4 +7,4 @@ author = "Somebody"
 
 [[plugins]]
 name = "simple-rust-plugin"
-path = "plugins/simple-rust-plugin"
+type = "kegs.testing.simple_rust_plugin"

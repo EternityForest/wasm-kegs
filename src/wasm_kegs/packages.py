@@ -41,9 +41,19 @@ class PackageStore():
             return package
         
         if package.endswith(".keg"):
-            path = os.path.join(self.path, package[:-4])
 
-            zipfile.ZipFile(package).extractall(path)
+
+            path = os.path.join(os.path.dirname(package), "cache", os.path.basename(package)[:-4])
+        
+            if os.path.exists(path):
+                print(f"Using cached package {path}")
+                return path
+            
+            print(f"Extracting {package} to {path}")
+
+            zipfile.ZipFile(package).extractall(path+"~")
+            os.rename(path+"~", path)
+
             return path
 
         raise RuntimeError(f"Could not find package {package}")
